@@ -1,5 +1,5 @@
 ```javascript
-var BlobLog = require('./')
+var BlobLog = require('blob-log')
 var crypto = require('crypto')
 var mapSeries = require('async.mapseries')
 var rimraf = require('rimraf')
