@@ -55,12 +55,12 @@ mapSeries(
       // hashes each in the `.blob-log` directory.
       fs.stat('.blob-log/00', function (error, stat) {
         assert.ifError(error, 'no error')
-        assert(stat.isFile())
+        assert.equal(stat.isFile(), true)
         assert.equal(stat.size, 1000 * 64)
       })
       fs.stat('.blob-log/01', function (error, stat) {
         assert.ifError(error, 'no error')
-        assert(stat.isFile())
+        assert.equal(stat.isFile(), true)
         assert.equal(stat.size, 1000 * 64)
       })
     })
