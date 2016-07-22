@@ -1,8 +1,9 @@
 ```javascript
 var BlobLog = require('blob-log')
-var crypto = require('crypto')
-var mapSeries = require('async.mapseries')
 var assert = require('assert')
+var crypto = require('crypto')
+var fs = require('fs')
+var mapSeries = require('async.mapseries')
 var randomString = require('random-string')
 
 var EXAMPLE_HASHES = []
@@ -16,7 +17,8 @@ while (EXAMPLE_HASHES.length < 2000) {
 
 var log = new BlobLog({
   hashLength: 64,
-  hashesPerFile: 1000
+  hashesPerFile: 1000,
+  directory: '.blob-log'
 })
 
 mapSeries(
@@ -39,6 +41,16 @@ mapSeries(
         hashes, EXAMPLE_HASHES.slice(3),
         'streams hashes'
       )
+      fs.stat('.blob-log/00', function (error, stat) {
+        assert.ifError(error, 'no error')
+        assert(stat.isFile())
+        assert.equal(stat.size, 1000 * 64)
+      })
+      fs.stat('.blob-log/01', function (error, stat) {
+        assert.ifError(error, 'no error')
+        assert(stat.isFile())
+        assert.equal(stat.size, 1000 * 64)
+      })
     })
   }
 )
