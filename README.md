@@ -11,7 +11,7 @@ var EXAMPLE_HASHES = []
 while (EXAMPLE_HASHES.length < 2000) {
   EXAMPLE_HASHES.push(
     crypto.createHash('sha256')
-    .update(randomString(), 'utf8')
+    .update(randomString())
     .digest('hex')
   )
 }
