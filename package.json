@@ -16,10 +16,12 @@
     "async.mapseries": "^0.5.2",
     "defence-cli": "^2.0.0",
     "random-string": "^0.1.2",
-    "replace-require-self": "^1.1.1"
+    "replace-require-self": "^1.1.1",
+    "standard": "^7.1.2"
   },
   "scripts": {
     "pretest": "rm -rf .blob-log",
-    "test": "defence README.md | replace-require-self | node"
+    "test": "defence README.md | replace-require-self | node",
+    "lint": "standard"
   }
 }
