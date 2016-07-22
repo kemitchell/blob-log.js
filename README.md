@@ -3,18 +3,20 @@ var BlobLog = require('blob-log')
 var crypto = require('crypto')
 var mapSeries = require('async.mapseries')
 var assert = require('assert')
+var randomString = require('random-string')
 
-var EXAMPLE_ENTRIES = ['a', 'b', 'c', 'd', 'e', 'f']
-
-var EXAMPLE_HASHES = EXAMPLE_ENTRIES.map(function (entry) {
-  return crypto.createHash('sha256')
-  .update(entry, 'utf8')
-  .digest('hex')
-})
+var EXAMPLE_HASHES = []
+while (EXAMPLE_HASHES.length < 2000) {
+  EXAMPLE_HASHES.push(
+    crypto.createHash('sha256')
+    .update(randomString(), 'utf8')
+    .digest('hex')
+  )
+}
 
 var log = new BlobLog({
   hashLength: 64,
-  hashesPerFile: 2
+  hashesPerFile: 1000
 })
 
 mapSeries(
@@ -34,7 +36,7 @@ mapSeries(
     })
     .once('end', function () {
       assert.deepEqual(
-        hashes, EXAMPLE_HASHES.slice(2),
+        hashes, EXAMPLE_HASHES.slice(3),
         'streams hashes'
       )
     })
