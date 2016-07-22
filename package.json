@@ -1,6 +1,6 @@
 {
   "name": "blob-log",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "append-only log of stuff stored somewhere else",
   "author": "Kyle E. Mitchell <kyle@kemitchell.com> (https://kemitchell.com/)",
   "repository": "kemitchell/blob-log.js",
