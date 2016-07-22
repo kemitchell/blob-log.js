@@ -75,7 +75,7 @@ prototype.createReadStream = function (from) {
     pump(blockStream, throughStream)
     var lastFile = log._fileForIndex(length - 1)
     var fileNumber = log._fileForIndex(from)
-    var offset = (log.length % log._hashesPerFile) * log._hashLength
+    var offset = (from % log._hashesPerFile) * log._hashLength
     pipeNextFile()
     return throughStream
   }
