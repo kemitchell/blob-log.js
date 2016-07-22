@@ -15,7 +15,7 @@ function BlobLog (options) {
 
   this._hashLength = options.hashLength || 64
   this._hashesPerFile = options.hashesPerFile || 10000
-  this._directory = options.directory || '.bloblog'
+  this._directory = options.directory || '.blob-log'
   this.length = 0
   mkdirp(this._directory, function (error) {
     if (error) {
