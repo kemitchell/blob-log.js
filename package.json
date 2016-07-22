@@ -14,11 +14,11 @@
   },
   "devDependencies": {
     "async.mapseries": "^0.5.2",
-    "rimraf": "^2.5.3",
-    "tape": "^4.6.0",
-    "uuid": "^2.0.2"
+    "defence-cli": "^2.0.0",
+    "replace-require-self": "^1.1.1",
+    "rimraf": "^2.5.3"
   },
   "scripts": {
-    "test": "node test.js"
+    "test": "defence README.md | replace-require-self | node"
   }
 }
