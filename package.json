@@ -15,10 +15,10 @@
   "devDependencies": {
     "async.mapseries": "^0.5.2",
     "defence-cli": "^2.0.0",
-    "replace-require-self": "^1.1.1",
-    "rimraf": "^2.5.3"
+    "replace-require-self": "^1.1.1"
   },
   "scripts": {
+    "pretest": "rm -rf .blob-log",
     "test": "defence README.md | replace-require-self | node"
   }
 }

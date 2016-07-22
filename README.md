@@ -2,7 +2,6 @@
 var BlobLog = require('blob-log')
 var crypto = require('crypto')
 var mapSeries = require('async.mapseries')
-var rimraf = require('rimraf')
 var assert = require('assert')
 
 var EXAMPLE_ENTRIES = ['a', 'b', 'c', 'd', 'e', 'f']
@@ -15,7 +14,7 @@ var EXAMPLE_HASHES = EXAMPLE_ENTRIES.map(function (entry) {
 
 var log = new BlobLog({
   hashLength: 64,
-  hashesPerFile: 2,
+  hashesPerFile: 2
 })
 
 mapSeries(
@@ -31,10 +30,13 @@ mapSeries(
       hashes.push(chunk)
     })
     .once('error', function (error) {
-      assert.ifError(error)
+      assert.ifError(error, 'no error')
     })
     .once('end', function () {
-      assert.deepEqual(hashes, EXAMPLE_HASHES.slice(2), 'stream hashes')
+      assert.deepEqual(
+        hashes, EXAMPLE_HASHES.slice(2),
+        'streams hashes'
+      )
     })
   }
 )
