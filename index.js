@@ -1,5 +1,6 @@
 var BlockStream = require('block-stream')
 var fs = require('fs')
+var lengthPrefixedStream = require('length-prefixed-stream')
 var lexi = require('lexicographic-integer')
 var mkdirp = require('mkdirp')
 var path = require('path')
@@ -13,10 +14,8 @@ function BlobLog (options) {
     return new BlobLog(options)
   }
 
-  this._hashLength = options.hashLength || 64
-  this._hashesPerFile = options.hashesPerFile || 10000
+  this._fileSize = options.hashesPerFile || 10000
   this._directory = options.directory || '.blob-log'
-  this.length = 0
   mkdirp(this._directory, function (error) {
     if (error) {
       throw error

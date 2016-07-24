@@ -7,6 +7,7 @@
   "license": "MIT",
   "dependencies": {
     "block-stream": "0.0.9",
+    "length-prefixed-stream": "^1.5.0",
     "lexicographic-integer": "^1.1.0",
     "mkdirp": "^0.5.1",
     "pump": "^1.0.1",
