@@ -1,10 +1,15 @@
 var BlockStream = require('block-stream')
+var crcHash = require('crc-hash')
 var fs = require('fs')
 var lexi = require('lexicographic-integer')
 var mkdirp = require('mkdirp')
 var path = require('path')
 var pump = require('pump')
+var runSeries = require('run-series')
 var through2 = require('through2')
+
+var CRC_BYTES = 4
+var LENGTH_BYTES = 4
 
 module.exports = BlobLog
 
@@ -42,14 +47,18 @@ prototype._currentfile = function () {
   return this._fileForIndex(this.length)
 }
 
-prototype.write = function (hash, callback) {
-  if (hash.length !== this._hashLength) {
-    throw new Error('wrong-length hash')
-  }
+prototype._appendBuffer = function (buffer, callback) {
   var log = this
-  var fileNumber = log._fileForIndex(log.length)
+  var index = log.length
+  var fileNumber = log._fileForIndex(index)
   var filePath = log._filePathFor(fileNumber)
-  fs.appendFile(filePath, hash, 'utf8', function (error) {
+  var lengthPrefix = new Buffer(LENGTH_BYTES)
+  lengthPrefix.writeUInt32BE(buffer.byteLength)
+  var crc = createCRC()
+  .update(buffer)
+  .digest()
+  var blob = Buffer.concat([lengthPrefix, crc, buffer])
+  fs.appendFile(filePath, blob, function (error) {
     if (error) {
       callback(error)
     } else {
@@ -57,6 +66,69 @@ prototype.write = function (hash, callback) {
       callback()
     }
   })
+}
+
+prototype._appendStream = function (dataStream, callback) {
+  var log = this
+  var index = log.length
+  var fileNumber = log._fileForIndex(index)
+  var filePath = log._filePathFor(fileNumber)
+
+  var fileLength
+  var streamLength = 0
+  var crc = createCRC()
+
+  runSeries([getLength, streamData, rewritePrefix], function (error) {
+    if (error) callback(error)
+    else callback(index)
+  })
+
+  function getLength (callback) {
+    fs.stat(filePath, function (error, stats) {
+      if (error) callback(error)
+      else {
+        fileLength = stats.length
+        callback()
+      }
+    })
+  }
+
+  function streamData (callback) {
+    var writeStream = createWriteStream()
+    writeStream.write(new Buffer(LENGTH_BYTES).fill(0))
+    writeStream.write(new Buffer(CRC_BYTES).fill(0))
+    pump(
+      dataStream,
+      through2(function (chunk, encoding, done) {
+        streamLength += chunk.length
+        crc.update(chunk)
+        done(null, chunk)
+      }),
+      writeStream
+    )
+    .once('error', callback)
+    .once('finish', callback)
+  }
+
+  function rewritePrefix () {
+    var writeStream = createWriteStream()
+    .once('error', callback)
+    .once('finish', callback)
+    writeStream.writeUInt32BE(streamLength)
+    writeStream.end(crc.digest())
+  }
+
+  function createWriteStream () {
+    return fs.createWriteStream(filePath, {start: fileLength})
+  }
+}
+
+prototype._createReadStream = function (file) {
+  var readStream = fs.createReadStream(file)
+  var returned = through2.obj(function (chunk, encoding, done) {
+    
+  })
+  return pump(readStream, returned)
 }
 
 prototype.createReadStream = function (from) {
@@ -98,4 +170,8 @@ prototype.createReadStream = function (from) {
       .pipe(blockStream, {end: false})
     }
   }
+}
+
+function createCRC () {
+  return crcHash('CRC-32')
 }
