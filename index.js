@@ -1,4 +1,4 @@
-var Decoder = require('./decoder')
+var Decoder = require('blob-log-decoder')
 var asyncQueue = require('async.queue')
 var crcHash = require('crc-hash').createHash
 var fs = require('fs')
@@ -62,17 +62,27 @@ prototype._appendBuffer = function (buffer, callback) {
   var index = log.length
   var fileNumber = log._fileForIndex(index)
   var filePath = log._filePathFor(fileNumber)
-  var lengthPrefix = new Buffer(LENGTH_BYTES)
-  lengthPrefix.writeUInt32BE(buffer.length)
+  var firstBlobInFile = (index % this._blobsPerFile) === 0
+  var firstNumberBytes = firstBlobInFile ? 4 : 0
   var crc = createCRC()
   .update(buffer)
   .digest()
-  var blob = Buffer.concat([lengthPrefix, crc, buffer])
+  var blob = new Buffer(
+    firstNumberBytes + // First blob number
+    4 + // Blob length
+    4 + // CRC-32
+    buffer.length // Blob
+  )
+  if (firstNumberBytes !== 0) {
+    blob.writeUInt32BE(index, 0)
+  }
+  blob.writeUInt32BE(buffer.length, firstNumberBytes + 0)
+  crc.copy(buffer, firstNumberBytes + 4)
+  buffer.copy(blob, firstNumberBytes + 8)
   fs.appendFile(filePath, blob, function (error) {
     if (error) {
       callback(error)
     } else {
-      console.log('appended to ' + filePath)
       log.length++
       callback()
     }
@@ -167,15 +177,11 @@ prototype.createReadStream = function (from) {
   function pipeNextFile () {
     var filePath = log._filePathFor(fileNumber)
     var fileReadStream = fs.createReadStream(filePath)
-    .once('error', function (error) {
-      throughStream.emit('error', error)
-    })
-    var decoder = new Decoder()
-    pump(fileReadStream, decoder)
+    var decoder = pump(fileReadStream, new Decoder())
     if (fileNumber === lastFile) {
-      fileReadStream.pipe(throughStream, {end: true})
+      decoder.pipe(throughStream, {end: true})
     } else {
-      fileReadStream
+      decoder
       .once('end', function () {
         fileNumber++
         pipeNextFile()
