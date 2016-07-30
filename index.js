@@ -1,5 +1,6 @@
-var BlockStream = require('block-stream')
-var crcHash = require('crc-hash')
+var Decoder = require('./decoder')
+var asyncQueue = require('async.queue')
+var crcHash = require('crc-hash').createHash
 var fs = require('fs')
 var lexi = require('lexicographic-integer')
 var mkdirp = require('mkdirp')
@@ -18,33 +19,42 @@ function BlobLog (options) {
     return new BlobLog(options)
   }
 
-  this._hashLength = options.hashLength || 64
-  this._hashesPerFile = options.hashesPerFile || 10000
-  this._directory = options.directory || '.blob-log'
-  this.length = 0
-  mkdirp(this._directory, function (error) {
-    if (error) {
-      throw error
+  var log = this
+  log._blobsPerFile = options.blobsPerFile || 100
+  log._directory = options.directory || '.blob-log'
+  log.length = 0
+
+  log._queue = asyncQueue(function (task, done) {
+    if (task.buffer) {
+      log._appendBuffer(task.buffer, function (error) {
+        task.callback(error)
+        done()
+      })
+    } else {
+      throw new Error('not implemented')
     }
+  })
+
+  mkdirp(log._directory, function (error) {
+    if (error) throw error
   })
 }
 
 var prototype = BlobLog.prototype
 
-prototype._makeBuffer = function () {
-  return new ArrayBuffer(this._bufferSize)
-}
-
 prototype._fileForIndex = function (index) {
-  return Math.floor(index / this._hashesPerFile)
+  return Math.floor(index / this._blobsPerFile)
 }
 
 prototype._filePathFor = function (number) {
   return path.join(this._directory, lexi.pack(number, 'hex'))
 }
 
-prototype._currentfile = function () {
-  return this._fileForIndex(this.length)
+prototype.appendBuffer = function (buffer, callback) {
+  this._queue.push({
+    buffer: buffer,
+    callback: callback
+  })
 }
 
 prototype._appendBuffer = function (buffer, callback) {
@@ -53,7 +63,7 @@ prototype._appendBuffer = function (buffer, callback) {
   var fileNumber = log._fileForIndex(index)
   var filePath = log._filePathFor(fileNumber)
   var lengthPrefix = new Buffer(LENGTH_BYTES)
-  lengthPrefix.writeUInt32BE(buffer.byteLength)
+  lengthPrefix.writeUInt32BE(buffer.length)
   var crc = createCRC()
   .update(buffer)
   .digest()
@@ -62,6 +72,7 @@ prototype._appendBuffer = function (buffer, callback) {
     if (error) {
       callback(error)
     } else {
+      console.log('appended to ' + filePath)
       log.length++
       callback()
     }
@@ -84,13 +95,28 @@ prototype._appendStream = function (dataStream, callback) {
   })
 
   function getLength (callback) {
-    fs.stat(filePath, function (error, stats) {
-      if (error) callback(error)
-      else {
-        fileLength = stats.length
+    // If this index is the first blob in the file, write the index
+    // number to the start of the file.
+    if (index % log._blobsPerFile === 0) {
+      fileLength = 4
+      var writeStream = createWriteStream()
+      .once('error', function (error) {
+        callback(error)
+      })
+      .once('finish', function () {
         callback()
-      }
-    })
+      })
+      writeStream.writeUInt32BE(index)
+    // Otherwise, stat for the current file length.
+    } else {
+      fs.stat(filePath, function (error, stats) {
+        if (error) callback(error)
+        else {
+          fileLength = stats.length
+          callback()
+        }
+      })
+    }
   }
 
   function streamData (callback) {
@@ -123,14 +149,6 @@ prototype._appendStream = function (dataStream, callback) {
   }
 }
 
-prototype._createReadStream = function (file) {
-  var readStream = fs.createReadStream(file)
-  var returned = through2.obj(function (chunk, encoding, done) {
-    
-  })
-  return pump(readStream, returned)
-}
-
 prototype.createReadStream = function (from) {
   var log = this
   if (from === undefined) {
@@ -140,38 +158,33 @@ prototype.createReadStream = function (from) {
   if (length === 0) {
     return false
   } else {
-    var blockStream = new BlockStream(log._hashLength)
-    var throughStream = through2.obj(function (chunk, _, done) {
-      done(null, chunk.toString())
-    })
-    pump(blockStream, throughStream)
+    var throughStream = through2.obj()
     var lastFile = log._fileForIndex(length - 1)
     var fileNumber = log._fileForIndex(from)
-    var offset = (from % log._hashesPerFile) * log._hashLength
     pipeNextFile()
     return throughStream
   }
   function pipeNextFile () {
     var filePath = log._filePathFor(fileNumber)
-    var fileReadStream = fs.createReadStream(filePath, {start: offset})
+    var fileReadStream = fs.createReadStream(filePath)
     .once('error', function (error) {
       throughStream.emit('error', error)
     })
+    var decoder = new Decoder()
+    pump(fileReadStream, decoder)
     if (fileNumber === lastFile) {
-      fileReadStream
-      .pipe(blockStream)
+      fileReadStream.pipe(throughStream, {end: true})
     } else {
       fileReadStream
       .once('end', function () {
         fileNumber++
-        offset = 0
         pipeNextFile()
       })
-      .pipe(blockStream, {end: false})
+      .pipe(throughStream, {end: false})
     }
   }
 }
 
 function createCRC () {
-  return crcHash('CRC-32')
+  return crcHash('crc32')
 }
