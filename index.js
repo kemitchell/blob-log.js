@@ -1,6 +1,7 @@
 var Decoder = require('blob-log-decoder')
 var Encoder = require('blob-log-encoder')
 var Multistream = require('multistream')
+var PassThrough = require('readable-stream').PassThrough
 var StreamingAppend = require('stream-to-blob-log')
 var fs = require('fs')
 var lexint = require('lexicographic-integer')
@@ -12,14 +13,14 @@ module.exports = BlobLog
 
 var constructorOptions = {
   directory: nonEmptyString,
-  blobsPerFile: optional(possiblyInfinite(positiveInteger)),
-  blobsPerBatch: optional(positiveInteger)
+  blobsPerFile: optional(possiblyInfinite(positiveInteger))
 }
 
 var LOG_FILE_EXTENSION = 'bloblog'
 var LOG_FILE_RE = new RegExp('^([^.]+)\\.' + LOG_FILE_EXTENSION + '$')
 
 function BlobLog (options) {
+  // Construct a new object.
   if (!(this instanceof BlobLog)) {
     return new BlobLog(options)
   }
@@ -27,7 +28,6 @@ function BlobLog (options) {
 
   // Save options.
   validateOptions(constructorOptions, options)
-  self._blobsPerBatch = options.blobsPerBatch || 1
   self._blobsPerFile = options.blobsPerFile || 10
   self._directory = options.directory
 
@@ -123,6 +123,8 @@ prototype._checkCurrentFile = function (callback) {
   )
 }
 
+// Log File Helper Methods
+
 prototype._filePath = function (number) {
   return path.join(
     this._directory,
@@ -134,11 +136,46 @@ prototype._currentFile = function () {
   return this._filePath(this._fileNumber)
 }
 
+prototype._fileFor = function (index) {
+  return Math.floor((index - 1) / this._blobsPerFile) + 1
+}
+
+prototype._nthInFile = function (index) {
+  return (index - 1) % this._blobsPerFile + 1
+}
+
+prototype._firstInFile = function (index) {
+  return this._nthInFile(index) === 1
+}
+
+prototype._lastInFile = function (index) {
+  return this._nthInFile(index) === this._blobsPerFile
+}
+
 // Public API
 
 prototype.createWriteStream = function (options) {
+  var self = this
   if (options.objectMode) {
-    
+    var returned = new PassThrough({
+      writableObjectMode: true,
+      readableObjectMode: true
+    })
+    .prependListener('data', function () {
+      this.left--
+      if (this.left === 0) {
+        this.logFile.unpipe(this)
+        this.logFile.end()
+        var nextIndex = self._index + 1
+        this.logFile = pump(
+          new Encoder(nextIndex),
+          fs.createWriteStream(self._filePath(nextIndex))
+        )
+        this.pipe(this.logFile)
+      }
+    })
+    returned.left = Math.max(self._blobsPerFile - self._blobsInFile, 0)
+    return returned
   } else {
   }
 }

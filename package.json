@@ -15,6 +15,7 @@
     "lexicographic-integer": "^1.1.0",
     "multistream": "^2.1.0",
     "pump": "^1.0.1",
+    "readable-stream": "^2.1.4",
     "run-series": "^1.1.4",
     "stream-to-blob-log": "^1.0.0"
   },
