@@ -1,0 +1,34 @@
+{
+  "name": "blob-log.js",
+  "version": "0.0.0",
+  "description": "store logs of blobs on disk",
+  "author": "Kyle E. Mitchell <kyle@kemitchell.com> (https://kemitchell.com/)",
+  "repository": "kemitchell/blob-log.js",
+  "files": [
+    "index.js"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "array-find": "^1.0.0",
+    "blob-log-decoder": "^2.0.3",
+    "blob-log-encoder": "^1.0.1",
+    "lexicographic-integer": "^1.1.0",
+    "mkdirp": "^0.5.1",
+    "multistream": "^2.1.0",
+    "multiwritable": "^1.0.0",
+    "pump": "^1.0.1",
+    "run-series": "^1.1.4"
+  },
+  "devDependencies": {
+    "async.map": "^0.5.2",
+    "concat-stream": "^1.5.1",
+    "from2-array": "0.0.4",
+    "rimraf": "^2.5.4",
+    "tape": "^4.6.0",
+    "temporary-directory": "^1.0.2",
+    "touch": "^1.0.0"
+  },
+  "scripts": {
+    "test": "node test.js"
+  }
+}
