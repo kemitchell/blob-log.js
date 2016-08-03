@@ -52,11 +52,7 @@ tape('round trip', function (test) {
         }, 250)
       })
     )
-    function finish () {
-      cleanUp(function () {
-        test.end()
-      })
-    }
+    function finish () { cleanUp(function () { test.end() }) }
   })
 })
 
@@ -104,11 +100,7 @@ tape('append to existing', function (test) {
         })
       )
     })
-    function finish () {
-      cleanUp(function () {
-        test.end()
-      })
-    }
+    function finish () { cleanUp(function () { test.end() }) }
   })
 })
 
@@ -127,9 +119,7 @@ tape('construction', function (test) {
     })
     .once('ready', function () {
       test.pass('ready event')
-      cleanUp(function () {
-        test.end()
-      })
+      cleanUp(function () { test.end() })
     })
   })
 })
@@ -159,13 +149,11 @@ tape('creates missing directory', function (test) {
     fs.stat(directory, function (error, stats) {
       /* istanbul ignore if */
       if (error) {
-        test.ifError(error)
+        test.ifError(error, 'no error')
       } else {
         test.equal(stats.isDirectory(), true, 'creates directory')
       }
-      rimraf('deep', function () {
-        test.end()
-      })
+      rimraf('deep', function () { test.end() })
     })
   })
 })
@@ -179,9 +167,7 @@ tape('error when directory is a file', function (test) {
       BlobLog({directory: file})
       .once('error', /* istanbul ignore next */ function (error) {
         test.equal(error.code, 'EEXIST', 'emits EEXIST error')
-        cleanUp(function () {
-          test.end()
-        })
+        cleanUp(function () { test.end() })
       })
     })
   })
@@ -206,9 +192,7 @@ tape('missing log file', function (test) {
           'missing ' + path.join(directory, '02.bloblog'),
           'emits error'
         )
-        cleanUp(function () {
-          test.end()
-        })
+        cleanUp(function () { test.end() })
       })
     })
   })
@@ -236,11 +220,7 @@ tape('ignores extraneous file', function (test) {
         finish()
       })
     })
-    function finish () {
-      cleanUp(function () {
-        test.end()
-      })
-    }
+    function finish () { cleanUp(function () { test.end() }) }
   })
 })
 
@@ -249,13 +229,8 @@ tape('read directory', function (test) {
     test.ifError(error, 'no error')
     var log = BlobLog({directory: directory})
     .once('ready', function () {
-      test.equal(
-        log.getDirectory(), directory,
-        'returns directory'
-      )
-      cleanUp(function () {
-        test.end()
-      })
+      test.equal(log.getDirectory(), directory, 'returns directory')
+      cleanUp(function () { test.end() })
     })
   })
 })
@@ -265,12 +240,10 @@ tape('read length', function (test) {
     test.ifError(error, 'no error')
     var log = BlobLog({directory: directory})
     .once('ready', function () {
-      log.createWriteStream({objectMode: true})
+      log.createWriteStream()
       .once('finish', function () {
         test.equal(log.length(), 1, 'length of 1')
-        cleanUp(function () {
-          test.end()
-        })
+        cleanUp(function () { test.end() })
       })
       .end('test blob')
     })
