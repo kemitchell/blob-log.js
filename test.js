@@ -181,6 +181,22 @@ tape('ignores extraneous file', function (test) {
   })
 })
 
+tape('read directory', function (test) {
+  mktempd(function (error, directory, cleanUp) {
+    test.ifError(error, 'no error')
+    var log = BlobLog({directory: directory})
+    .once('ready', function () {
+      test.equal(
+        log.getDirectory(), directory,
+        'returns directory'
+      )
+      cleanUp(function () {
+        test.end()
+      })
+    })
+  })
+})
+
 function writeOneBlob (file, callback) {
   var encoder = new Encoder(1)
   encoder.pipe(fs.createWriteStream(file))
