@@ -98,7 +98,7 @@ prototype._readExistingFiles = function (callback) {
 prototype._checkTailFile = function (callback) {
   var self = this
   if (self._tailFileNumber === undefined) {
-    self._blobsInFile = 0
+    self._blobsInTailFile = 0
     self._index = 0
     callback()
   } else {
@@ -107,7 +107,7 @@ prototype._checkTailFile = function (callback) {
     fs.createReadStream(self._tailFilePath())
     .once('error', /* istanbul ignore next */ function (error) {
       if (error.code === 'ENOENT') {
-        self._blobsInFile = 0
+        self._blobsInTailFile = 0
         self._index = 0
         callback()
       } else {
@@ -124,7 +124,7 @@ prototype._checkTailFile = function (callback) {
         blobCount++
       })
       .once('end', function () {
-        self._blobsInFile = blobCount
+        self._blobsInTailFile = blobCount
         self._index = lastIndex
         callback()
       })
@@ -134,27 +134,55 @@ prototype._checkTailFile = function (callback) {
 
 prototype._setupWriteStream = function (callback) {
   var self = this
-  var options = {
-    end: true,
-    objectMode: true
-  }
+  // Generate a succession of Encoder Transform streams piped to file
+  // write streams, ensuring:
+  //
+  // 1. `self._blobsPerFile` blobs are written to each file
+  //
+  // 2. Log files are named numerically, with packed integer basenames
+  //    and `LOG_FILE_EXTENSION` extensions.
+  //
+  // 3. If there are existing log files, append to, rather than
+  //    overwrite the current tail file.
   function sinkFactory (currentSink, chunk, encoding, callback) {
     var index = self._index + 1
     self._index = index
     var fileNumber = self._blobIndexToFileNumber(index)
     self._tailFileNumber = fileNumber
-    var file = self._fileNumberToPath(fileNumber)
-    if (currentSink && currentSink.path === file) {
+    var filePath = self._fileNumberToPath(fileNumber)
+    var firstBlobInFile = self._firstBlobInFile(index)
+    // This blob belongs in the same file we are already writing to.
+    if (currentSink && currentSink.path === filePath) {
+      self._blobsInTailFile++
       callback(null, currentSink)
+    // This blob belongs in a file we haven't written to yet.  Either:
+    //
+    // 1. This BlobLog was just initialized.  If there is room at the
+    //    end of the existing log tail file, we should append there.
+    //    Otherwise, we should start a new file.
+    //
+    // 2. This blob belongs in a new file we should create.
     } else {
-      var encoder = new Encoder(index)
-      encoder.path = file
-      var writeStream = fs.createWriteStream(file)
+      // If we are appending to an existing file, do not write a first
+      // sequence number.
+      var encoder = new Encoder(firstBlobInFile ? index : undefined)
+      encoder.path = filePath
+      var writeStream = fs.createWriteStream(filePath, {
+        flags: firstBlobInFile ? 'w' : 'a'
+      })
+      if (firstBlobInFile) {
+        self._blobsInTailFile = 1
+      } else {
+        self._blobsInTailFile++
+      }
       pump(encoder, writeStream)
       callback(null, encoder)
     }
   }
-  self._writeStream = MultiWritable(sinkFactory, options)
+  self._writeStream = MultiWritable(sinkFactory, {
+    end: true,
+    objectMode: true
+  })
   self._writeBuffer.pipe(self._writeStream)
   callback()
 }
@@ -185,19 +213,12 @@ prototype._blobIndexToFileNumber = function (index) {
   return Math.floor((index - 1) / this._blobsPerFile) + 1
 }
 
-/* istanbul ignore next: TODO */
 prototype._nthInFile = function (index) {
   return (index - 1) % this._blobsPerFile + 1
 }
 
-/* istanbul ignore next: TODO */
-prototype._firstInFile = function (index) {
+prototype._firstBlobInFile = function (index) {
   return this._nthInFile(index) === 1
-}
-
-/* istanbul ignore next: TODO */
-prototype._lastInFile = function (index) {
-  return this._nthInFile(index) === this._blobsPerFile
 }
 
 // Public API
