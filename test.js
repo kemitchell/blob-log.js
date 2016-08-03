@@ -235,6 +235,21 @@ tape('read directory', function (test) {
   })
 })
 
+tape('read files list', function (test) {
+  mktempd(function (error, directory, cleanUp) {
+    test.ifError(error, 'no error')
+    var firstFile = path.join(directory, '01.bloblog')
+    writeOneBlob(firstFile, function (error) {
+      test.ifError(error, 'no error')
+      var log = BlobLog({directory: directory})
+      .once('ready', function () {
+        test.deepEqual(log.files(), [firstFile], 'returns array')
+        cleanUp(function () { test.end() })
+      })
+    })
+  })
+})
+
 tape('read length', function (test) {
   mktempd(function (error, directory, cleanUp) {
     test.ifError(error, 'no error')

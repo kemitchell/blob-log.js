@@ -238,6 +238,14 @@ prototype.directory = function () {
   return this._directory
 }
 
+prototype.files = function () {
+  var returned = []
+  for (var counter = 1; counter <= this._tailFileNumber; counter++) {
+    returned.push(this._fileNumberToPath(counter))
+  }
+  return returned
+}
+
 prototype.length = function () {
   return this._index
 }
