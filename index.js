@@ -61,16 +61,15 @@ var prototype = BlobLog.prototype
 prototype._checkExistingLogFiles = function (callback) {
   var self = this
   var directory = self._directory
-  // Get a list of file names in the directory, then filter out
-  // and sort lexicographic-integer file names, to determine where
-  // to start writing new blobs.
+  // Get a list of file names in the directory, then filter out and sort
+  // files that match the log file naming convention.
   fs.readdir(directory, function (error, files) {
     /* istanbul ignore if */
     if (error) {
       callback(error)
     } else {
-      // Compile a sorted list of the integer values that
-      // correspond to existing blob log files.
+      // Compile a sorted list of the integer values that correspond to
+      // existing blob log files.
       var fileNumbers = []
       files.forEach(function (file) {
         var number = logFileNumber(file)
@@ -79,8 +78,8 @@ prototype._checkExistingLogFiles = function (callback) {
         }
       })
       fileNumbers.sort()
-      // Do we have a continous set of log file numbers, without
-      // any gaps?
+      // Are there any gaps in the list of log file numbers. For
+      // example: `[1, 2, 4, 5, ...]` is missing `3`.
       var missing = arrayFind(fileNumbers, function (element, index) {
         return element !== index + 1
       })
@@ -88,7 +87,7 @@ prototype._checkExistingLogFiles = function (callback) {
         var missingPath = self._fileNumberToPath(missing - 1)
         callback(new Error('missing ' + missingPath))
       } else {
-        // Store the number of the latest log file.
+        // Store the number of the highest-numbered ("tail") log file.
         self._tailFileNumber = fileNumbers[fileNumbers.length - 1]
         callback()
       }
@@ -97,15 +96,15 @@ prototype._checkExistingLogFiles = function (callback) {
 }
 
 // Read any existing tail log file to determine what index numbers it
-// contains and how much room for more blobs is left in it.
+// contains and how many blobs it contains.
 prototype._checkTailFile = function (callback) {
   var self = this
-  // No existing tail log file.
+  // The directory does not have a tail log file.
   if (self._tailFileNumber === undefined) {
     self._blobsInTailFile = 0
     self._length = 0
     callback()
-  // Have a tail log file.
+  // The directory has a tail log file.
   } else {
     var lastIndex = 0
     var blobCount = 0
@@ -137,22 +136,21 @@ prototype._checkTailFile = function (callback) {
   }
 }
 
-// Create a Writable stream that encodes blobs and writes them to
-// successively numbered log files.  Then hook the buffering stream
+// Create a `Writable` stream that encodes blobs and writes them to
+// successively numbered log files.  Then pipe the buffering stream
 // created before we started checking for existing log files in the
-// directory up to that Writable with a pipe.
+// directory up to the new, blob-encoding `Writable`.
 prototype._createInternalWriteStream = function (callback) {
   var self = this
-  // Generate a succession of `BlobLogEncoder` `Transform` streams piped
-  // to file write streams, ensuring:
+  // Generate a succession of `BlobLogEncoder` streams piped to file
+  // write streams, ensuring:
   //
   // 1. `self._blobsPerFile` blobs are written to each file
   //
   // 2. Log files are named numerically, with packed integer basenames
   //    and `LOG_FILE_EXTENSION` extensions.
   //
-  // 3. If there are existing log files, append to, rather than
-  //    overwrite the current tail file.
+  // 3. Append to the existing tail file, if one already exists.
   function sinkFactory (currentSink, chunk, encoding, callback) {
     var index = self._length + 1
     self._length = index
