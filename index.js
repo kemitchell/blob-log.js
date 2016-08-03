@@ -81,7 +81,7 @@ prototype._readExistingFiles = function (callback) {
         return element !== index + 1
       })
       if (missing) {
-        var missingPath = self._filePathForIndex(missing - 1)
+        var missingPath = self._fileNumberToPath(missing - 1)
         callback(new Error('missing ' + missingPath))
       } else {
         // Store the number of the latest log file.
@@ -140,7 +140,7 @@ function logFileNumber (file) {
   }
 }
 
-prototype._filePathForIndex = function (number) {
+prototype._fileNumberToPath = function (number) {
   return path.join(
     this._directory,
     packInteger(number) + LOG_FILE_EXTENSION
@@ -148,11 +148,10 @@ prototype._filePathForIndex = function (number) {
 }
 
 prototype._tailFilePath = function () {
-  return this._filePathForIndex(this._fileNumber)
+  return this._fileNumberToPath(this._fileNumber)
 }
 
-/* istanbul ignore next: TODO */
-prototype._fileNumberForIndex = function (index) {
+prototype._blobIndexToFileNumber = function (index) {
   return Math.floor((index - 1) / this._blobsPerFile) + 1
 }
 
@@ -189,15 +188,16 @@ prototype.createWriteStream = function () {
   }
   function sinkFactory (currentSink, chunk, encoding, callback) {
     var index = self._index + 1
-    var file = self._filePathForIndex(index)
+    var fileNumber = self._blobIndexToFileNumber(index)
+    var file = self._fileNumberToPath(fileNumber)
     if (currentSink && currentSink.path === file) {
       callback(null, currentSink)
     } else {
       var spy = through2Spy.obj(function () {
         self._index++
       })
+      spy.path = file
       var encoder = new Encoder(index)
-      encoder.path = file
       var writeStream = fs.createWriteStream(file)
       pump(spy, encoder, writeStream)
       callback(null, spy)
@@ -210,13 +210,13 @@ prototype.createWriteStream = function () {
 // TODO: Options object with from index
 prototype.createReadStream = function () {
   var self = this
-  var fileIndex = 0
+  var fileNumber = 0
   return MultiStream.obj(function (callback) {
-    fileIndex++
-    if (fileIndex > self._fileNumber) {
+    fileNumber++
+    if (fileNumber > self._fileNumber) {
       callback(null, null)
     } else {
-      var filePath = self._filePathForIndex(fileIndex)
+      var filePath = self._fileNumberToPath(fileNumber)
       var readStream = fs.createReadStream(filePath)
       var decoder = new Decoder()
       pump(readStream, decoder)
