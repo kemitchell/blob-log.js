@@ -88,7 +88,7 @@ prototype._readExistingFiles = function (callback) {
         callback(new Error('missing ' + missingPath))
       } else {
         // Store the number of the latest log file.
-        self._fileNumber = fileNumbers[fileNumbers.length - 1]
+        self._tailFileNumber = fileNumbers[fileNumbers.length - 1]
         callback()
       }
     }
@@ -97,7 +97,7 @@ prototype._readExistingFiles = function (callback) {
 
 prototype._checkTailFile = function (callback) {
   var self = this
-  if (self._fileNumber === undefined) {
+  if (self._tailFileNumber === undefined) {
     self._blobsInFile = 0
     self._index = 0
     callback()
@@ -142,7 +142,7 @@ prototype._setupWriteStream = function (callback) {
     var index = self._index + 1
     self._index = index
     var fileNumber = self._blobIndexToFileNumber(index)
-    self._fileNumber = fileNumber
+    self._tailFileNumber = fileNumber
     var file = self._fileNumberToPath(fileNumber)
     if (currentSink && currentSink.path === file) {
       callback(null, currentSink)
@@ -178,7 +178,7 @@ prototype._fileNumberToPath = function (number) {
 }
 
 prototype._tailFilePath = function () {
-  return this._fileNumberToPath(this._fileNumber)
+  return this._fileNumberToPath(this._tailFileNumber)
 }
 
 prototype._blobIndexToFileNumber = function (index) {
@@ -221,7 +221,7 @@ prototype.createReadStream = function () {
   var fileNumber = 0
   return MultiStream.obj(function (callback) {
     fileNumber++
-    if (fileNumber > self._fileNumber) {
+    if (fileNumber > self._tailFileNumber) {
       callback(null, null)
     } else {
       var filePath = self._fileNumberToPath(fileNumber)
