@@ -1,5 +1,5 @@
-var Decoder = require('blob-log-decoder')
-var Encoder = require('blob-log-encoder')
+var BlobLogDecoder = require('blob-log-decoder')
+var BlobLogEncoder = require('blob-log-encoder')
 var EventEmitter = require('events').EventEmitter
 var MultiStream = require('multistream')
 var MultiWritable = require('multiwritable')
@@ -30,18 +30,18 @@ function BlobLog (options) {
   validateOptions(constructorOptions, options)
   self._blobsPerFile = options.blobsPerFile || 10
   self._directory = options.directory
-  self._index = null
-
-  EventEmitter.call(self)
 
   // Initialize.
+  EventEmitter.call(self)
+
+  self._index = null
   self._writeBuffer = through2.obj()
 
   runSeries([
     mkdirp.bind(null, self._directory),
-    self._readExistingFiles.bind(self),
+    self._checkExistingLogFiles.bind(self),
     self._checkTailFile.bind(self),
-    self._setupWriteStream.bind(self)
+    self._createInternalWriteStream.bind(self)
   ], function (error) {
     if (error) {
       self.emit('error', error)
@@ -58,7 +58,7 @@ var prototype = BlobLog.prototype
 // Initialization Methods
 
 // Read the directory and decode file names, checking for gaps.
-prototype._readExistingFiles = function (callback) {
+prototype._checkExistingLogFiles = function (callback) {
   var self = this
   var directory = self._directory
   // Get a list of file names in the directory, then filter out
@@ -120,7 +120,7 @@ prototype._checkTailFile = function (callback) {
       }
     })
     .pipe(
-      new Decoder()
+      new BlobLogDecoder()
       .once('error', /* istanbul ignore next */ function (error) {
         callback(error)
       })
@@ -141,10 +141,10 @@ prototype._checkTailFile = function (callback) {
 // successively numbered log files.  Then hook the buffering stream
 // created before we started checking for existing log files in the
 // directory up to that Writable with a pipe.
-prototype._setupWriteStream = function (callback) {
+prototype._createInternalWriteStream = function (callback) {
   var self = this
-  // Generate a succession of Encoder Transform streams piped to file
-  // write streams, ensuring:
+  // Generate a succession of `BlobLogEncoder` `Transform` streams piped
+  // to file write streams, ensuring:
   //
   // 1. `self._blobsPerFile` blobs are written to each file
   //
@@ -166,19 +166,19 @@ prototype._setupWriteStream = function (callback) {
       callback(null, currentSink)
     // This blob belongs in a file we haven't written to yet.  Either:
     //
-    // 1. This BlobLog was just initialized.  If there is room at the
-    //    end of the existing log tail file, we should append there.
+    // 1. This `BlobLog` was just initialized.  If there is room at the
+    //    end of the existing tail log file, we should append there.
     //    Otherwise, we should start a new file.
     //
     // 2. This blob belongs in a new file we should create.
     } else {
       // If we are appending to an existing file, do not write a first
       // sequence number.
-      var encoder = new Encoder(firstBlobInFile ? index : undefined)
+      var encoder = new BlobLogEncoder(
+        firstBlobInFile ? index : undefined
+      )
       encoder.path = filePath
-      var writeStream = fs.createWriteStream(filePath, {
-        flags: firstBlobInFile ? 'w' : 'a'
-      })
+      var writeStream = fs.createWriteStream(filePath, {flags: 'a'})
       if (firstBlobInFile) {
         self._blobsInTailFile = 1
       } else {
@@ -200,8 +200,8 @@ prototype._setupWriteStream = function (callback) {
 
 var LOG_FILE_EXTENSION = '.bloblog'
 
-// Give a file path like `01.bloblog`, returns `Number(1)`.
-// Given a file path like `other-file.txt` returns `undefined`.
+// Given a file path like `01.bloblog`, returns `Number(1)`.
+// Given a file path like `other-file.txt`, returns `undefined`.
 function logFileNumber (file) {
   var extension = path.extname(file)
   if (extension === LOG_FILE_EXTENSION) {
@@ -224,12 +224,12 @@ prototype._blobIndexToFileNumber = function (index) {
   return Math.floor((index - 1) / this._blobsPerFile) + 1
 }
 
-prototype._nthInFile = function (index) {
+prototype._blobPositionInFile = function (index) {
   return (index - 1) % this._blobsPerFile + 1
 }
 
 prototype._firstBlobInFile = function (index) {
-  return this._nthInFile(index) === 1
+  return this._blobPositionInFile(index) === 1
 }
 
 // Public API
@@ -242,23 +242,28 @@ prototype.length = function () {
   return this._index
 }
 
+// Create and return a pass-through Transform stream piped to the
+// internal buffering stream that will be piped to an BlobLogEncoder.
 prototype.createWriteStream = function () {
   var returned = through2.obj()
   returned.pipe(this._writeBuffer, {end: false})
   return returned
 }
 
+// Create a `Readable` stream.  Pipe a succession of `Readable` file
+// stream plus `BlobLogDecoder` pipelines to it.
 prototype.createReadStream = function () {
   var self = this
   var fileNumber = 0
   return MultiStream.obj(function (callback) {
     fileNumber++
     if (fileNumber > self._tailFileNumber) {
+      // No more `Readable` streams.
       callback(null, null)
     } else {
       var filePath = self._fileNumberToPath(fileNumber)
       var readStream = fs.createReadStream(filePath)
-      var decoder = new Decoder()
+      var decoder = new BlobLogDecoder()
       pump(readStream, decoder)
       callback(null, decoder)
     }
