@@ -11,7 +11,7 @@ var mkdirp = require('mkdirp')
 var path = require('path')
 var pump = require('pump')
 var runSeries = require('run-series')
-var through2Spy = require('through2-spy')
+var through2 = require('through2')
 
 module.exports = BlobLog
 
@@ -35,10 +35,13 @@ function BlobLog (options) {
   EventEmitter.call(self)
 
   // Initialize.
+  self._writeBuffer = through2.obj()
+
   runSeries([
     mkdirp.bind(null, self._directory),
     self._readExistingFiles.bind(self),
-    self._checkTailFile.bind(self)
+    self._checkTailFile.bind(self),
+    self._setupWriteStream.bind(self)
   ], function (error) {
     if (error) {
       self.emit('error', error)
@@ -129,6 +132,33 @@ prototype._checkTailFile = function (callback) {
   }
 }
 
+prototype._setupWriteStream = function (callback) {
+  var self = this
+  var options = {
+    end: true,
+    objectMode: true
+  }
+  function sinkFactory (currentSink, chunk, encoding, callback) {
+    var index = self._index + 1
+    self._index = index
+    var fileNumber = self._blobIndexToFileNumber(index)
+    self._fileNumber = fileNumber
+    var file = self._fileNumberToPath(fileNumber)
+    if (currentSink && currentSink.path === file) {
+      callback(null, currentSink)
+    } else {
+      var encoder = new Encoder(index)
+      encoder.path = file
+      var writeStream = fs.createWriteStream(file)
+      pump(encoder, writeStream)
+      callback(null, encoder)
+    }
+  }
+  self._writeStream = MultiWritable(sinkFactory, options)
+  self._writeBuffer.pipe(self._writeStream)
+  callback()
+}
+
 // Log File Helper Methods
 
 var LOG_FILE_EXTENSION = '.bloblog'
@@ -181,32 +211,11 @@ prototype.length = function () {
 }
 
 prototype.createWriteStream = function () {
-  var self = this
-  var options = {
-    end: true,
-    objectMode: true
-  }
-  function sinkFactory (currentSink, chunk, encoding, callback) {
-    var index = self._index + 1
-    var fileNumber = self._blobIndexToFileNumber(index)
-    var file = self._fileNumberToPath(fileNumber)
-    if (currentSink && currentSink.path === file) {
-      callback(null, currentSink)
-    } else {
-      var spy = through2Spy.obj(function () {
-        self._index++
-      })
-      spy.path = file
-      var encoder = new Encoder(index)
-      var writeStream = fs.createWriteStream(file)
-      pump(spy, encoder, writeStream)
-      callback(null, spy)
-    }
-  }
-  return MultiWritable(sinkFactory, options)
+  var returned = through2.obj()
+  returned.pipe(this._writeBuffer, {end: false})
+  return returned
 }
 
-// TODO: Options object with from index
 prototype.createReadStream = function () {
   var self = this
   var fileNumber = 0

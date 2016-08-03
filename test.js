@@ -19,33 +19,37 @@ tape('round trip', function (test) {
       directory: directory,
       blobsPerFile: 2
     })
-    from2Array(data)
+    from2Array.obj(data.map(function (string) {
+      return new Buffer(string, 'ascii')
+    }))
     .pipe(
-      log.createWriteStream({objectMode: true})
+      log.createWriteStream()
       .once('finish', function (error) {
         test.ifError(error, 'no error')
-        var read = []
-        log.createReadStream()
-        .once('error', /* istanbul ignore next */ function (error) {
-          test.fail(error)
-          finish()
-        })
-        .on('data', function (blob) {
-          read.push(blob)
-        })
-        .once('end', function () {
-          asyncMap(read, bufferBlob, function (error, blobs) {
-            test.ifError(error, 'no error')
-            test.deepEqual(
-              blobs.map(function (buffer) {
-                return buffer.toString()
-              }),
-              data,
-              'read blobs'
-            )
+        setTimeout(function () {
+          var read = []
+          log.createReadStream()
+          .once('error', /* istanbul ignore next */ function (error) {
+            test.fail(error)
             finish()
           })
-        })
+          .on('data', function (blob) {
+            read.push(blob)
+          })
+          .once('end', function () {
+            asyncMap(read, bufferBlob, function (error, blobs) {
+              test.ifError(error, 'no error')
+              test.deepEqual(
+                blobs.map(function (buffer) {
+                  return buffer.toString()
+                }),
+                data,
+                'read blobs'
+              )
+              finish()
+            })
+          })
+        }, 250)
       })
     )
     function finish () {
