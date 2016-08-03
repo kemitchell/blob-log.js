@@ -229,7 +229,7 @@ tape('read directory', function (test) {
     test.ifError(error, 'no error')
     var log = BlobLog({directory: directory})
     .once('ready', function () {
-      test.equal(log.getDirectory(), directory, 'returns directory')
+      test.equal(log.directory(), directory, 'returns directory')
       cleanUp(function () { test.end() })
     })
   })
