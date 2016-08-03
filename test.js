@@ -110,6 +110,29 @@ function bufferBlob (blob, callback) {
   }))
 }
 
+tape('append events', function (test) {
+  mktempd(function (error, directory, cleanUp) {
+    test.ifError(error, 'no error')
+    var data = ['a', 'b', 'c']
+    var lastIndex = 0
+    var log = new BlobLog({
+      directory: directory,
+      blobsPerFile: 2
+    })
+    .on('append', function (index) {
+      lastIndex = index
+    })
+    from2Array.obj(data.map(function (string) {
+      return new Buffer(string, 'ascii')
+    }))
+    .pipe(log.createWriteStream())
+    setTimeout(function () {
+      test.equal(lastIndex, 3, 'index is 3')
+      cleanUp(function () { test.end() })
+    }, 100)
+  })
+})
+
 tape('construction', function (test) {
   mktempd(function (error, directory, cleanUp) {
     test.ifError(error, 'no error')
