@@ -11,6 +11,7 @@ var mkdirp = require('mkdirp')
 var path = require('path')
 var pump = require('pump')
 var runSeries = require('run-series')
+var through2Spy = require('through2-spy')
 
 module.exports = BlobLog
 
@@ -176,6 +177,10 @@ prototype.getDirectory = function () {
   return this._directory
 }
 
+prototype.length = function () {
+  return this._index
+}
+
 prototype.createWriteStream = function () {
   var self = this
   var options = {
@@ -188,11 +193,14 @@ prototype.createWriteStream = function () {
     if (currentSink && currentSink.path === file) {
       callback(null, currentSink)
     } else {
+      var spy = through2Spy.obj(function () {
+        self._index++
+      })
       var encoder = new Encoder(index)
       encoder.path = file
       var writeStream = fs.createWriteStream(file)
-      pump(encoder, writeStream)
-      callback(null, encoder)
+      pump(spy, encoder, writeStream)
+      callback(null, spy)
     }
   }
   self._internalWriteStream = MultiWritable(sinkFactory, options)

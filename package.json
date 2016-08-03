@@ -12,7 +12,8 @@
     "multistream": "^2.1.0",
     "multiwritable": "^1.0.0",
     "pump": "^1.0.1",
-    "run-series": "^1.1.4"
+    "run-series": "^1.1.4",
+    "through2-spy": "^2.0.0"
   },
   "devDependencies": {
     "async.map": "^0.5.2",
