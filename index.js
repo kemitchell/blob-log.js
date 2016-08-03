@@ -3,6 +3,7 @@ var BlobLogEncoder = require('blob-log-encoder')
 var EventEmitter = require('events').EventEmitter
 var MultiStream = require('multistream')
 var MultiWritable = require('multiwritable')
+var StreamingAppend = require('stream-to-blob-log')
 var arrayFind = require('array-find')
 var fs = require('fs')
 var inherits = require('util').inherits

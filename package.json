@@ -13,6 +13,7 @@
     "multiwritable": "^1.0.0",
     "pump": "^1.0.1",
     "run-series": "^1.1.4",
+    "stream-to-blob-log": "^1.0.0",
     "through2": "^2.0.1"
   },
   "devDependencies": {
