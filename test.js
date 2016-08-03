@@ -28,8 +28,7 @@ tape('round trip', function (test) {
         log.createReadStream()
         .once('error', /* istanbul ignore next */ function (error) {
           test.fail(error)
-          cleanUp()
-          test.end()
+          finish()
         })
         .on('data', function (blob) {
           read.push(blob)
@@ -44,12 +43,16 @@ tape('round trip', function (test) {
               data,
               'read blobs'
             )
-            cleanUp()
-            test.end()
+            finish()
           })
         })
       })
     )
+    function finish () {
+      cleanUp(function () {
+        test.end()
+      })
+    }
   })
 })
 
@@ -68,8 +71,9 @@ tape('construction', function (test) {
     })
     .once('ready', function () {
       test.pass('ready event')
-      cleanUp()
-      test.end()
+      cleanUp(function () {
+        test.end()
+      })
     })
   })
 })
@@ -119,8 +123,9 @@ tape('error when directory is a file', function (test) {
       BlobLog({directory: file})
       .once('error', /* istanbul ignore next */ function (error) {
         test.equal(error.code, 'EEXIST', 'emits EEXIST error')
-        cleanUp()
-        test.end()
+        cleanUp(function () {
+          test.end()
+        })
       })
     })
   })
@@ -145,8 +150,9 @@ tape('missing log file', function (test) {
           'missing ' + path.join(directory, '02.bloblog'),
           'emits error'
         )
-        cleanUp()
-        test.end()
+        cleanUp(function () {
+          test.end()
+        })
       })
     })
   })
@@ -175,8 +181,9 @@ tape('ignores extraneous file', function (test) {
       })
     })
     function finish () {
-      cleanUp()
-      test.end()
+      cleanUp(function () {
+        test.end()
+      })
     }
   })
 })
@@ -193,6 +200,23 @@ tape('read directory', function (test) {
       cleanUp(function () {
         test.end()
       })
+    })
+  })
+})
+
+tape('read length', function (test) {
+  mktempd(function (error, directory, cleanUp) {
+    test.ifError(error, 'no error')
+    var log = BlobLog({directory: directory})
+    .once('ready', function () {
+      log.createWriteStream({objectMode: true})
+      .once('finish', function () {
+        test.equal(log.length(), 1, 'length of 1')
+        cleanUp(function () {
+          test.end()
+        })
+      })
+      .end('test blob')
     })
   })
 })
