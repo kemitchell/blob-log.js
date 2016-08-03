@@ -172,6 +172,10 @@ prototype._lastInFile = function (index) {
 
 // Public API
 
+prototype.getDirectory = function () {
+  return this._directory
+}
+
 prototype.createWriteStream = function () {
   var self = this
   var options = {
