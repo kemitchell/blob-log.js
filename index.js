@@ -32,13 +32,13 @@ function BlobLog (options) {
   self._directory = options.directory
   self._index = null
 
-  EventEmitter.call(this)
+  EventEmitter.call(self)
 
   // Initialize.
   runSeries([
-    mkdirp.bind(null, this._directory),
-    this._readExistingFiles.bind(this),
-    this._checkTailFile.bind(this)
+    mkdirp.bind(null, self._directory),
+    self._readExistingFiles.bind(self),
+    self._checkTailFile.bind(self)
   ], function (error) {
     if (error) {
       self.emit('error', error)
