@@ -234,7 +234,7 @@ prototype._firstBlobInFile = function (index) {
 
 // Public API
 
-prototype.getDirectory = function () {
+prototype.directory = function () {
   return this._directory
 }
 
