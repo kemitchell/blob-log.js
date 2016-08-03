@@ -314,10 +314,12 @@ function positiveInteger (argument) {
 
 // Integer Packing
 
+var INTEGER_ENCODING = 'hex'
+
 function packInteger (integer) {
-  return lexint.pack(integer, 'hex')
+  return lexint.pack(integer, INTEGER_ENCODING)
 }
 
 function unpackInteger (string) {
-  return lexint.unpack(string, 'hex')
+  return lexint.unpack(string, INTEGER_ENCODING)
 }
