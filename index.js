@@ -34,7 +34,7 @@ function BlobLog (options) {
   // Initialize.
   EventEmitter.call(self)
 
-  self._index = null
+  self._length = null
   self._writeBuffer = through2.obj()
 
   runSeries([
@@ -103,7 +103,7 @@ prototype._checkTailFile = function (callback) {
   // No existing tail log file.
   if (self._tailFileNumber === undefined) {
     self._blobsInTailFile = 0
-    self._index = 0
+    self._length = 0
     callback()
   // Have a tail log file.
   } else {
@@ -113,7 +113,7 @@ prototype._checkTailFile = function (callback) {
     .once('error', /* istanbul ignore next */ function (error) {
       if (error.code === 'ENOENT') {
         self._blobsInTailFile = 0
-        self._index = 0
+        self._length = 0
         callback()
       } else {
         callback(error)
@@ -130,7 +130,7 @@ prototype._checkTailFile = function (callback) {
       })
       .once('end', function () {
         self._blobsInTailFile = blobCount
-        self._index = lastIndex
+        self._length = lastIndex
         callback()
       })
     )
@@ -154,8 +154,8 @@ prototype._createInternalWriteStream = function (callback) {
   // 3. If there are existing log files, append to, rather than
   //    overwrite the current tail file.
   function sinkFactory (currentSink, chunk, encoding, callback) {
-    var index = self._index + 1
-    self._index = index
+    var index = self._length + 1
+    self._length = index
     var fileNumber = self._blobIndexToFileNumber(index)
     self._tailFileNumber = fileNumber
     var filePath = self._fileNumberToPath(fileNumber)
@@ -248,7 +248,7 @@ prototype.files = function () {
 }
 
 prototype.length = function () {
-  return this._index
+  return this._length
 }
 
 // Create and return a pass-through Transform stream piped to the
