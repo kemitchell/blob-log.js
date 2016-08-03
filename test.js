@@ -60,6 +60,58 @@ tape('round trip', function (test) {
   })
 })
 
+tape('append to existing', function (test) {
+  mktempd(function (error, directory, cleanUp) {
+    test.ifError(error, 'no error')
+    var firstFile = path.join(directory, '01.bloblog')
+    writeOneBlob(firstFile, function () {
+      var data = ['a', 'b', 'c', 'd', 'e', 'f']
+      var log = new BlobLog({
+        directory: directory,
+        blobsPerFile: 2
+      })
+      from2Array.obj(data.map(function (string) {
+        return new Buffer(string, 'ascii')
+      }))
+      .pipe(
+        log.createWriteStream()
+        .once('finish', function (error) {
+          test.ifError(error, 'no error')
+          setTimeout(function () {
+            var read = []
+            log.createReadStream()
+            .once('error', /* istanbul ignore next */ function (error) {
+              test.fail(error)
+              finish()
+            })
+            .on('data', function (blob) {
+              read.push(blob)
+            })
+            .once('end', function () {
+              asyncMap(read, bufferBlob, function (error, blobs) {
+                test.ifError(error, 'no error')
+                test.deepEqual(
+                  blobs.map(function (buffer) {
+                    return buffer.toString()
+                  }),
+                  ['first blob'].concat(data),
+                  'read blobs'
+                )
+                finish()
+              })
+            })
+          }, 250)
+        })
+      )
+    })
+    function finish () {
+      cleanUp(function () {
+        test.end()
+      })
+    }
+  })
+})
+
 function bufferBlob (blob, callback) {
   blob.stream.pipe(concatStream(function (buffered) {
     callback(null, buffered)
@@ -228,5 +280,5 @@ tape('read length', function (test) {
 function writeOneBlob (file, callback) {
   var encoder = new Encoder(1)
   encoder.pipe(fs.createWriteStream(file))
-  encoder.end(new Buffer('test blob', 'ascii'), callback)
+  encoder.end(new Buffer('first blob', 'ascii'), callback)
 }
