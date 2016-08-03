@@ -57,6 +57,7 @@ var prototype = BlobLog.prototype
 
 // Initialization Methods
 
+// Read the directory and decode file names, checking for gaps.
 prototype._readExistingFiles = function (callback) {
   var self = this
   var directory = self._directory
@@ -95,12 +96,16 @@ prototype._readExistingFiles = function (callback) {
   })
 }
 
+// Read any existing tail log file to determine what index numbers it
+// contains and how much room for more blobs is left in it.
 prototype._checkTailFile = function (callback) {
   var self = this
+  // No existing tail log file.
   if (self._tailFileNumber === undefined) {
     self._blobsInTailFile = 0
     self._index = 0
     callback()
+  // Have a tail log file.
   } else {
     var lastIndex = 0
     var blobCount = 0
@@ -132,6 +137,10 @@ prototype._checkTailFile = function (callback) {
   }
 }
 
+// Create a Writable stream that encodes blobs and writes them to
+// successively numbered log files.  Then hook the buffering stream
+// created before we started checking for existing log files in the
+// directory up to that Writable with a pipe.
 prototype._setupWriteStream = function (callback) {
   var self = this
   // Generate a succession of Encoder Transform streams piped to file
@@ -191,6 +200,8 @@ prototype._setupWriteStream = function (callback) {
 
 var LOG_FILE_EXTENSION = '.bloblog'
 
+// Give a file path like `01.bloblog`, returns `Number(1)`.
+// Given a file path like `other-file.txt` returns `undefined`.
 function logFileNumber (file) {
   var extension = path.extname(file)
   if (extension === LOG_FILE_EXTENSION) {
