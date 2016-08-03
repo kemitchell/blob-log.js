@@ -203,8 +203,7 @@ prototype.createWriteStream = function () {
       callback(null, spy)
     }
   }
-  self._internalWriteStream = MultiWritable(sinkFactory, options)
-  return self._internalWriteStream
+  return MultiWritable(sinkFactory, options)
 }
 
 // TODO: Options object with from index
