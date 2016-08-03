@@ -187,6 +187,7 @@ prototype._createInternalWriteStream = function (callback) {
       pump(encoder, writeStream)
       callback(null, encoder)
     }
+    self.emit('append', index)
   }
   self._writeStream = MultiWritable(sinkFactory, {
     end: true,
