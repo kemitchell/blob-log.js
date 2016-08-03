@@ -23,6 +23,7 @@
     "async.map": "^0.5.2",
     "concat-stream": "^1.5.1",
     "from2-array": "0.0.4",
+    "istanbul": "^0.4.4",
     "rimraf": "^2.5.4",
     "standard": "^7.1.2",
     "tape": "^4.6.0",
@@ -31,6 +32,8 @@
   },
   "scripts": {
     "test": "node test.js",
-    "lint": "standard"
+    "lint": "standard",
+    "precoverage": "istanbul cover test.js",
+    "coverage": "istanbul check-coverage --branches 100 --functions 100 --statements 100 --lines 100"
   }
 }
