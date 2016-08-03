@@ -56,6 +56,52 @@ tape('round trip', function (test) {
   })
 })
 
+tape('immediate close', function (test) {
+  mktempd(function (error, directory, cleanUp) {
+    test.ifError(error, 'no error')
+    var data = ['a', 'b', 'c']
+    var log = new BlobLog({
+      directory: directory,
+      blobsPerFile: 2
+    })
+    from2Array.obj(data.map(function (string) {
+      return new Buffer(string, 'ascii')
+    }))
+    .pipe(
+      log.createWriteStream()
+      .once('finish', function (error) {
+        test.ifError(error, 'no error')
+        log.close()
+        cleanUp(function () { test.end() })
+      })
+    )
+  })
+})
+
+tape('delayed close', function (test) {
+  mktempd(function (error, directory, cleanUp) {
+    test.ifError(error, 'no error')
+    var data = ['a', 'b', 'c']
+    var log = new BlobLog({
+      directory: directory,
+      blobsPerFile: 2
+    })
+    from2Array.obj(data.map(function (string) {
+      return new Buffer(string, 'ascii')
+    }))
+    .pipe(
+      log.createWriteStream()
+      .once('finish', function (error) {
+        test.ifError(error, 'no error')
+        setTimeout(function () {
+          log.close()
+          cleanUp(function () { test.end() })
+        }, 100)
+      })
+    )
+  })
+})
+
 tape('append to existing', function (test) {
   mktempd(function (error, directory, cleanUp) {
     test.ifError(error, 'no error')

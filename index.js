@@ -60,6 +60,9 @@ var prototype = BlobLog.prototype
 // Read the directory and decode file names, checking for gaps.
 prototype._checkExistingLogFiles = function (callback) {
   var self = this
+  if (self._closed) {
+    return callback()
+  }
   var directory = self._directory
   // Get a list of file names in the directory, then filter out and sort
   // files that match the log file naming convention.
@@ -99,6 +102,9 @@ prototype._checkExistingLogFiles = function (callback) {
 // contains and how many blobs it contains.
 prototype._checkTailFile = function (callback) {
   var self = this
+  if (self._closed) {
+    return callback()
+  }
   // The directory does not have a tail log file.
   if (self._tailFileNumber === undefined) {
     self._blobsInTailFile = 0
@@ -191,7 +197,7 @@ prototype._createInternalWriteStream = function (callback) {
     end: true,
     objectMode: true
   })
-  self._writeBuffer.pipe(self._writeStream)
+  self._writeBuffer.pipe(self._writeStream, {end: false})
   callback()
 }
 
@@ -273,6 +279,17 @@ prototype.createReadStream = function () {
       var decoder = new BlobLogDecoder()
       pump(readStream, decoder)
       callback(null, decoder)
+    }
+  })
+}
+
+prototype.close = function () {
+  var self = this
+  self._closed = true
+  self._writeBuffer.end()
+  setImmediate(function () {
+    if (self._writeStream) {
+      self._writeStream.end()
     }
   })
 }
