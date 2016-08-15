@@ -12,21 +12,32 @@ var tape = require('tape')
 var touch = require('touch')
 
 tape('round trip', function (test) {
+  // Create a temporary directory to store files for this test.
   mktempd(function (error, directory, cleanUp) {
     test.ifError(error, 'no error')
-    var data = ['a', 'b', 'c']
+    // A few very small strings to store as blobs.
+    var data = ['apple', 'banana', 'cantaloupe']
+    // Store blobs in our temporary directory, two per log file.  Note
+    // that applications will probably want to store far more than two
+    // blobs per log file.  We use a low number in tests just to
+    // exercise file spanning logic.
     var log = new BlobLog({
       directory: directory,
       blobsPerFile: 2
     })
+    // Create a source `Readable` stream that emits our blobs, converted
+    // to `Buffer` ofjects.
     from2Array.obj(data.map(function (string) {
       return new Buffer(string, 'ascii')
     }))
+    // Pipe it to a new `Writable` stream.
     .pipe(
       log.createWriteStream()
       .once('finish', function (error) {
         test.ifError(error, 'no error')
+        // Wait a bit, to give the data a chance to flush to disk.
         setTimeout(function () {
+          // Read blobs back out of the `BlobLog`.
           var read = []
           log.createReadStream()
           .once('error', /* istanbul ignore next */ function (error) {
@@ -37,8 +48,13 @@ tape('round trip', function (test) {
             read.push(blob)
           })
           .once('end', function () {
+            // The `Readable` emits the blobs as objects with `Readable`
+            // stream properties emitting blob data.  Concatenate each
+            // of those streams into a single value for each blob.
             asyncMap(read, bufferBlob, function (error, blobs) {
               test.ifError(error, 'no error')
+              // Test that we read the same strings, in the same order,
+              // out of the `BlobLog`.
               test.deepEqual(
                 blobs.map(function (buffer) {
                   return buffer.toString()
